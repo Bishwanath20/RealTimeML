@@ -1,20 +1,3 @@
-"""
-RealTimeML - Sign Language Detection
-======================================
-Author: Bishwanath20
-Description: Full pipeline for training a CNN on sign language dataset
-             and running real-time inference via webcam or test images.
-
-Expected folder structure:
-    train/
-        A/  img1.jpg  img2.jpg ...
-        B/  img1.jpg ...
-        ...
-    test/
-        A/  img1.jpg ...
-        B/  img1.jpg ...
-        ...
-"""
 
 import os
 import sys
@@ -25,7 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# ── Deep-learning / vision ──────────────────────────────────────────────────
 import cv2
 import torch
 import torch.nn as nn
@@ -35,39 +17,26 @@ from torchvision import transforms
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
 
-# ────────────────────────────────────────────────────────────────────────────
-# CONFIGURATION  (edit these or pass via CLI flags)
-# ────────────────────────────────────────────────────────────────────────────
-# CONFIGURATION  (edit these or pass via CLI flags)
-# ────────────────────────────────────────────────────────────────────────────
 CFG = {
     "train_dir":   "data/train",
     "test_dir":    "data/test",
     "model_path":  "models/sign_language_model.h5",
     "labels_path": "models/labels.json",
-    "img_size":    (64, 64),       # resize all frames/images to this
+    "img_size":    (64, 64),       
     "batch_size":  32,
     "epochs":      20,
     "lr":          1e-3,
-    "val_split":   0.15,           # fraction of train set used as validation
-    "augment":     True,           # apply random augmentation during training
+    "val_split":   0.15,          
+    "augment":     True,           
     "early_stop_patience": 5,
 }
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 1.  DATA LOADING
-# ────────────────────────────────────────────────────────────────────────────
 
 def build_generators(cfg: dict):
-    """
-    Build PyTorch DataLoaders for train / validation / test splits.
-    Handles missing test directory gracefully.
-    """
     IMG_SIZE = cfg["img_size"]
     BATCH    = cfg["batch_size"]
 
-    # ── Augmentation for training ──
     if cfg["augment"]:
         train_transform = transforms.Compose([
             transforms.Resize(IMG_SIZE),
@@ -96,8 +65,7 @@ def build_generators(cfg: dict):
     
     train_dataset = ImageFolder(cfg["train_dir"], transform=train_transform)
     val_dataset = ImageFolder(cfg["train_dir"], transform=test_transform)
-    
-    # Split train into train/val
+  
     val_split = cfg["val_split"]
     train_size = int((1 - val_split) * len(train_dataset))
     val_size = len(train_dataset) - train_size
@@ -128,15 +96,9 @@ def build_generators(cfg: dict):
     return train_loader, val_loader, test_loader, label_map
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 2.  MODEL DEFINITION
-# ────────────────────────────────────────────────────────────────────────────
 
 def build_model(num_classes: int, img_size: tuple) -> nn.Module:
-    """
-    Lightweight but effective CNN for sign-language recognition.
-    Uses BatchNorm + Dropout to reduce over-fitting on small datasets.
-    """
+
     class SignLanguageCNN(nn.Module):
         def __init__(self, num_classes):
             super(SignLanguageCNN, self).__init__()
@@ -177,11 +139,6 @@ def build_model(num_classes: int, img_size: tuple) -> nn.Module:
     
     model = SignLanguageCNN(num_classes)
     return model
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# 3.  TRAINING
-# ────────────────────────────────────────────────────────────────────────────
 
 def train(cfg: dict):
     train_loader, val_loader, test_loader, label_map = build_generators(cfg)
@@ -333,10 +290,6 @@ def _plot_confusion_matrix(y_true, y_pred, class_names):
     plt.close()
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 4.  INFERENCE HELPERS
-# ────────────────────────────────────────────────────────────────────────────
-
 def load_inference_assets(cfg: dict):
     if not Path(cfg["model_path"]).exists():
         sys.exit(f"[ERROR] Model not found at '{cfg['model_path']}'. Run with --mode train first.")
@@ -379,9 +332,6 @@ def predict_frame(model, frame, label_map, img_size, device, top_k=3):
     return [(label_map[str(i)], float(probs[i])) for i in top_indices]
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 5.  REAL-TIME WEBCAM INFERENCE
-# ────────────────────────────────────────────────────────────────────────────
 
 def run_webcam(cfg: dict):
     model, label_map, device = load_inference_assets(cfg)
@@ -421,10 +371,6 @@ def run_webcam(cfg: dict):
     cap.release()
     cv2.destroyAllWindows()
 
-
-# ────────────────────────────────────────────────────────────────────────────
-# 6.  BATCH TEST-SET EVALUATION  (no camera required)
-# ────────────────────────────────────────────────────────────────────────────
 
 def run_evaluate(cfg: dict):
     model, label_map, device = load_inference_assets(cfg)
@@ -482,10 +428,6 @@ def run_evaluate(cfg: dict):
     _plot_confusion_matrix(all_labels, all_preds, class_names)
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 7.  PREDICT A SINGLE IMAGE FILE
-# ────────────────────────────────────────────────────────────────────────────
-
 def run_predict_image(cfg: dict, image_path: str):
     model, label_map, device = load_inference_assets(cfg)
 
@@ -500,10 +442,6 @@ def run_predict_image(cfg: dict, image_path: str):
         marker = "★" if rank == 0 else " "
         print(f"  {marker} {label:20s} {conf*100:6.2f}%")
 
-
-# ────────────────────────────────────────────────────────────────────────────
-# 8.  ENTRY POINT
-# ────────────────────────────────────────────────────────────────────────────
 
 def parse_args():
     p = argparse.ArgumentParser(
@@ -569,4 +507,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
